@@ -222,6 +222,8 @@ export function brushSVGPath(el: Path, scope: BrushScope) {
         attrs.d = svgPathBuilder.getStr();
     }
 
+    // Apply clip-rule from clipPath's style    
+    el.style.clipRule && (attrs['clip-rule'] = el.style.clipRule);
     setTransform(attrs, el.transform);
     setStyleAttrs(attrs, style, el, scope);
     setMetaData(attrs, el);
@@ -645,15 +647,26 @@ export function setClipPath(
 ) {
     const {clipPathCache, defs} = scope;
     let clipPathId = clipPathCache[clipPath.id];
+
+    const pathVersion = clipPath.path?.getVersion() ?? -1;
+    const preAttrs = defs[clipPathId]?.attrs;
+
     if (!clipPathId) {
         clipPathId = scope.zrId + '-c' + scope.clipPathIdx++;
         const clipPathAttrs: SVGVNodeAttrs = {
-            id: clipPathId
+            id: clipPathId,
+            pathVersion: pathVersion
         };
 
         clipPathCache[clipPath.id] = clipPathId;
         defs[clipPathId] = createVNode(
             'clipPath', clipPathId, clipPathAttrs,
+            [brushSVGPath(clipPath, scope)]
+        );
+    } else if (pathVersion != preAttrs?.pathVersion) {
+        preAttrs.pathVersion = pathVersion;
+        defs[clipPathId] = createVNode(
+            'clipPath', clipPathId, preAttrs,
             [brushSVGPath(clipPath, scope)]
         );
     }
